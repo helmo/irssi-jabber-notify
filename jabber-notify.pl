@@ -10,6 +10,7 @@ use vars qw($VERSION %IRSSI $AppName $XMPPUser $XMPPPass $XMPPServ $XMPPRes $XMP
 
 use Irssi;
 use Net::Jabber qw( Client );
+use Data::Dumper;
 use utf8;
 
 $VERSION = '0.01';
@@ -41,6 +42,9 @@ sub cmd_xmpp_notify_test {
     $message->SetMessage(to=>$XMPPRecv);
     $message->SetMessage(type=>"chat",
                         body=> $body );
+#Irssi::print(Dumper($Connection));
+    connect_jabber() unless $Connection->Connected();
+
     $Connection->Send($message);
 
 } 
@@ -64,36 +68,39 @@ $XMPPRes 	= Irssi::settings_get_str('xmpp_notify_res');
 $XMPPTLS	= Irssi::settings_get_bool('xmpp_notify_tls');
 $XMPPPort	= Irssi::settings_get_int('xmpp_notify_port');
 $AppName	= "irssi $XMPPServ";
-	
 
-$Connection = Net::Jabber::Client->new();
-
-my $status = $Connection->Connect( "hostname" => $XMPPServ,
-                          "port" => $XMPPPort,
-                          "tls" => $XMPPTLS );
+our $Connection = undef;
 
 
+sub connect_jabber() {
+  our $Connection = Net::Jabber::Client->new(debuglevel=>2);
 
-if (!(defined($status)))
-{
-    Irssi::print("ERROR:  Jabber server is down or connection was not allowed.");
-    Irssi::print ("        ($!)");
-    return;
+  my $status = $Connection->Connect( "hostname" => $XMPPServ,
+                            "port" => $XMPPPort,
+                            "tls" => $XMPPTLS );
+
+  if (!(defined($status)))
+  {
+      Irssi::print("ERROR:  Jabber server is down or connection was not allowed.");
+      Irssi::print ("        ($!)");
+      return;
+  }
+
+  my @result = $Connection->AuthSend( "username" => $XMPPUser,
+                                      "password" => $XMPPPass,
+                                      "resource" => $XMPPRes );
+
+
+
+  if ($result[0] ne "ok")
+  {
+      Irssi::print("ERROR: Authorization failed ($XMPPUser".'@'."$XMPPServ) : $result[0] - $result[1]");
+      return;
+  }
+  Irssi::print ("Logged into server $XMPPServ as $XMPPUser");
+#Irssi::print(Dumper($Connection));
+#  cmd_xmpp_notify_test();
 }
-
-
-my @result = $Connection->AuthSend( "username" => $XMPPUser,
-                                    "password" => $XMPPPass,
-                                    "resource" => $XMPPRes );
-
-
-
-if ($result[0] ne "ok")
-{
-    Irssi::print("ERROR: Authorization failed ($XMPPUser".'@'."$XMPPServ) : $result[0] - $result[1]");
-    return;
-}
-Irssi::print ("Logged into server $XMPPServ  as $XMPPUser ");
 
 sub sig_message_private ($$$$) {
 	return unless Irssi::settings_get_bool('xmpp_show_privmsg');
@@ -106,6 +113,9 @@ sub sig_message_private ($$$$) {
     $message->SetMessage(to=>$XMPPRecv);
     $message->SetMessage(type=>"chat",
                         body=> $body );
+
+    connect_jabber() unless $Connection->Connected();
+
     $Connection->Send($message);
 
 }
@@ -122,7 +132,10 @@ sub sig_print_text ($$$) {
         $message->SetMessage(to=>$XMPPRecv);
         $message->SetMessage(type=>"chat",
                             body=> $body );
-	$Connection->Send($message);
+
+    connect_jabber() unless $Connection->Connected();
+
+	  $Connection->Send($message);
 	}
 }
 
@@ -136,6 +149,9 @@ sub sig_notify_joined ($$$$$$) {
     $message->SetMessage(to=>$XMPPRecv);
     $message->SetMessage(type=>"chat",
                         body=> $body );
+
+    connect_jabber() unless $Connection->Connected();
+
     $Connection->Send($message);
 
 }
@@ -150,10 +166,14 @@ sub sig_notify_left ($$$$$$) {
     $message->SetMessage(to=>$XMPPRecv);
     $message->SetMessage(type=>"chat",
                         body=> $body );
+
+    connect_jabber() unless $Connection->Connected();
+
     $Connection->Send($message);
 }
 
 
+connect_jabber();
 
 Irssi::command_bind('xmpp-notify', 'cmd_xmpp_notify');
 Irssi::command_bind('xn-test', 'cmd_xmpp_notify_test');
