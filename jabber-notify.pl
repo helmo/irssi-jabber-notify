@@ -10,7 +10,6 @@ use vars qw($VERSION %IRSSI $AppName $XMPPUser $XMPPPass $XMPPServ $XMPPRes $XMP
 
 use Irssi;
 use Net::Jabber qw( Client );
-use Data::Dumper;
 use utf8;
 
 $VERSION = '0.01';
@@ -42,7 +41,6 @@ sub cmd_xmpp_notify_test {
     $message->SetMessage(to=>$XMPPRecv);
     $message->SetMessage(type=>"chat",
                         body=> $body );
-#Irssi::print(Dumper($Connection));
     connect_jabber() unless $Connection->Connected();
 
     $Connection->Send($message);
@@ -73,7 +71,7 @@ our $Connection = undef;
 
 
 sub connect_jabber() {
-  our $Connection = Net::Jabber::Client->new(debuglevel=>2);
+  our $Connection = Net::Jabber::Client->new(debuglevel=>0);
 
   my $status = $Connection->Connect( "hostname" => $XMPPServ,
                             "port" => $XMPPPort,
@@ -98,8 +96,6 @@ sub connect_jabber() {
       return;
   }
   Irssi::print ("Logged into server $XMPPServ as $XMPPUser");
-#Irssi::print(Dumper($Connection));
-#  cmd_xmpp_notify_test();
 }
 
 sub sig_message_private ($$$$) {
@@ -133,7 +129,7 @@ sub sig_print_text ($$$) {
         $message->SetMessage(type=>"chat",
                             body=> $body );
 
-    connect_jabber() unless $Connection->Connected();
+	  connect_jabber() unless $Connection->Connected();
 
 	  $Connection->Send($message);
 	}
